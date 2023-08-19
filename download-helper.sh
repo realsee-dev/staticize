@@ -2,7 +2,7 @@
 
 # Ensure that AK, SK, and Task ID are provided
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <app_key> <app_secret> <task_id>"
+    echo -e "[WARN]\tUsage: $0 <app_key> <app_secret> <task_id>"
     exit 1
 fi
 
@@ -17,30 +17,40 @@ file_name="download-cache-$task_id.txt"
 if [ -f $file_name ]; then
     length=$(cat $file_name | grep http | wc -l)
     if [ $length -gt 0 ]; then
-        echo "Skip get url as the cache file exists"
+        echo -e "[INFO]\tSkip get url as the cache file exists"
         skip_get_url="1"
     fi
 fi
 
 if [[ $force_download -eq 1 ]]; then
-    echo "Force download initiated"
+    echo -e "[INFO]\tForce download initiated"
     skip_get_url="0"
 fi
 
 if [ $skip_get_url == "0" ]; then
-    echo "Get the download URLs"
+    echo -e "[INFO]\tGet the download URLs"
 
     # Get the access token
     response=$(curl -s -X POST "https://app-gateway.realsee.cn/auth/access_token" -H "accept: application/json" -H "content-type: application/x-www-form-urlencoded" -d "app_key=$app_key&app_secret=$app_secret")
     access_token=$(echo $response | grep -o '"access_token":.*,' | awk -F: '{print $2}' | sed 's/[",]//g')
+    if [ -z "$access_token" ]; then
+        echo -e "[ERROR]\tFailed to get access token"
+        exit 1
+    fi
 
     # Get the task details
     detail=$(curl -s -X GET "https://app-gateway.realsee.cn/open/v3/shepherd/task/detail?task_id=$task_id" -H "accept: application/json" -H "authorization: $access_token")
 
     # Extract download URLs
     urls=$(echo $detail | grep -o '"url":"[^"]*' | grep -o '[^"]*$')
+    if [ -z "$urls" ]; then
+        echo -e "[ERROR]\tFailed to get download URLs"
+        exit 1
+    fi
 
-    echo $urls"\n" >>$file_name
+    for url in $urls; do
+        echo $urls"\n" >>$file_name
+    done
 else
     urls=$(cat $file_name | grep http)
 fi
@@ -51,23 +61,23 @@ mkdir -p download
 for url in $urls; do
     # Extract filename from URL
     filename=$(echo $url | grep -o '[^/]*.zip')
-    echo "The file name should be "$filename
+    echo -e "[INFO]\tFile name is "$filename
     if [ -f $filename ]; then
-        echo "Skip download as the file exists"
+        echo -e "[WARN]\tSkip download as the file exists"
         continue
     fi
 
     target="./download/$filename"
 
     if [ -f "$target.tmp" ]; then
-        echo "Delete the tmp file first"
+        echo -e "[WARN]\tDelete the tmp file first"
         rm "$target.tmp"
     fi
 
     wget -O "$target.tmp" $url -q --show-progress
 
-    echo "Finished download then rename the file"
+    echo -e "[INFO]\tDownloaded "$filename" to "$target".tmp"
     mv "$target.tmp" "$target"
 done
 
-echo "Finished all the downloads, start to unzip the files"
+echo -e "[INFO]\tAll files downloaded, please check the download folder, then unzip the files"
