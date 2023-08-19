@@ -1,0 +1,2 @@
+# staticize
+Staticizer
