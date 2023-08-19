@@ -49,11 +49,11 @@ if [ $skip_get_url == "0" ]; then
     fi
 
     # Clear the cache file
-    echo -e "[INFO]\tClear the cache file"
-    echo "" >$file_name
+    echo -e "[INFO]\tRemove the cache file"
+    rm -rf $file_name
 
     for url in $urls; do
-        echo $urls >>$file_name
+        echo $url >>$file_name
     done
 else
     urls=$(cat $file_name | grep http)
