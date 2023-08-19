@@ -25,5 +25,5 @@ for url in $urls; do
     # Extract filename from URL
     filename=$(echo $url | grep -o '[^/]*.zip')
     echo "The file name should be "$filename
-    #wget -O "$filename" $url
+    wget -O "$filename" $url
 done
