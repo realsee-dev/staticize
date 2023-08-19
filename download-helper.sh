@@ -49,7 +49,7 @@ if [ $skip_get_url == "0" ]; then
     fi
 
     for url in $urls; do
-        echo $urls"\n" >>$file_name
+        echo $urls >>$file_name
     done
 else
     urls=$(cat $file_name | grep http)
