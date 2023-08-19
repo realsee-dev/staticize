@@ -48,6 +48,10 @@ if [ $skip_get_url == "0" ]; then
         exit 1
     fi
 
+    # Clear the cache file
+    echo -e "[INFO]\tClear the cache file"
+    echo "" >$file_name
+
     for url in $urls; do
         echo $urls >>$file_name
     done
