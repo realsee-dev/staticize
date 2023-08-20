@@ -10,6 +10,7 @@ app_key=$1
 app_secret=$2
 task_id=$3
 force_download=$4
+resign=$5
 
 skip_get_url="0"
 
@@ -48,9 +49,51 @@ if [ $skip_get_url == "0" ]; then
         exit 1
     fi
 
+    if [[ $resign -eq 1 ]]; then
+        # Store paths in an array
+        declare -a paths
+
+        pathnames=$(echo $detail | grep -o '"pathname":"[^"]*' | grep -o '[^"]*$')
+        for pathname in $pathnames; do
+            paths+=("\""$pathname"\"")
+        done
+
+        # Join paths with commas for JSON array
+        joined_paths=$(
+            IFS=','
+            echo "[${paths[*]}]"
+        )
+
+        curl_sign_response=$(curl -s --location 'https://app-gateway.realsee.cn/staticize/v1/sign' \
+            --header "Authorization: $access_token" \
+            --header 'Content-Type: application/json' \
+            --data "{
+        \"storage_type\": \"tencent_cdn\",
+        \"ttl\": 3600,
+        \"paths\": $joined_paths
+    }")
+
+        # Extract presigned_urls to an array
+        presigned_urls_string=$(echo $curl_sign_response | grep -o '\["[^]]*\]' | sed 's/\[//g;s/\]//g;s/"//g;s/ //g')
+        IFS=','
+        read -ra presigned_urls <<<"$presigned_urls_string"
+
+        if [ -z "$presigned_urls" ]; then
+            echo -e "[ERROR]\tFailed to get presigned URLs"
+            exit 1
+        fi
+
+        urls="${presigned_urls[*]}"
+    fi
+
     # Clear the cache file
     echo -e "[INFO]\tRemove the cache file"
     rm -rf $file_name
+
+    if [ -z "$urls" ]; then
+        echo -e "[ERROR]\tThe download URLs are empty"
+        exit 1
+    fi
 
     for url in $urls; do
         echo $url >>$file_name
@@ -78,6 +121,7 @@ for url in $urls; do
         rm "$target.tmp"
     fi
 
+    echo -e "[INFO]\tDownloading "$filename" to "$target".tmp"
     wget -O "$target.tmp" $url -q --show-progress
 
     echo -e "[INFO]\tDownloaded "$filename" to "$target".tmp"
